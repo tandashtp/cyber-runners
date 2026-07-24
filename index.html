@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tandash Neon Runner — Syvll Auth ⚡</title>
+    <style>
+        body {
+            background-color: #050508;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        /* ACCOUNT BAR */
+        .auth-bar {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 100;
+        }
+        .user-pill {
+            background: #12131c;
+            border: 1px solid #00f3ff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #00f3ff;
+            font-weight: bold;
+        }
+
+        h1 { margin: 0 0 5px 0; font-size: 2rem; letter-spacing: 3px; text-transform: uppercase; }
+        .map-badge { font-size: 0.95rem; font-weight: bold; margin-bottom: 5px; color: #00f3ff; text-transform: uppercase; letter-spacing: 2px; }
+
+        .score-board {
+            display: flex; gap: 20px; font-size: 1rem; font-weight: bold; margin-bottom: 12px;
+        }
+
+        .game-wrapper { position: relative; width: 800px; height: 300px; }
+
+        #gameCanvas {
+            border: 3px solid #333; border-radius: 12px; box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+            cursor: pointer; display: block;
+        }
+
+        /* OVERLAYS */
+        .menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 8, 0.95); border-radius: 12px; display: flex;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 10;
+        }
+
+        .boss-warning-overlay {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-size: 1.8rem; font-weight: 900; color: #ff0055; text-shadow: 0 0 20px #ff0055;
+            display: none; z-index: 9; animation: flash 0.5s infinite alternate; pointer-events: none;
+        }
+
+        @keyframes flash { from { opacity: 0.2; } to { opacity: 1; } }
+
+        .countdown-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center;
+            font-size: 5rem; font-weight: 900; color: #00f3ff; text-shadow: 0 0 25px #00f3ff; z-index: 8; pointer-events: none;
+        }
+
+        .game-over-title { font-size: 2.2rem; font-weight: bold; color: #ff0055; text-shadow: 0 0 15px #ff0055; margin-bottom: 5px; }
+
+        .action-btn-group { display: flex; gap: 10px; margin-top: 10px; }
+
+        .btn {
+            background: #12131c; border: 2px solid #00f3ff; color: #fff;
+            padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: bold;
+            cursor: pointer; transition: all 0.2s ease; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(0, 243, 255, 0.5); background: #00f3ff; color: #000; }
+        .btn-secondary { border-color: #7928ca; }
+        .btn-secondary:hover { box-shadow: 0 0 15px rgba(121, 40, 202, 0.5); background: #7928ca; color: #fff; }
+        .btn-pink { border-color: #ff00ff; }
+        .btn-pink:hover { box-shadow: 0 0 15px rgba(255, 0, 255, 0.5); background: #ff00ff; color: #000; }
+        .btn-gold { border-color: #ffea00; }
+        .btn-gold:hover { box-shadow: 0 0 15px rgba(255, 234, 0, 0.5); background: #ffea00; color: #000; }
+        
+        .btn-google {
+            background: #ffffff; color: #000; border: 2px solid #ddd;
+            display: flex; align-items: center; gap: 8px; font-weight: bold;
+        }
+        .btn-google:hover { background: #eee; color: #000; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); }
+
+        .page-title { font-size: 1.2rem; font-weight: bold; color: #00f3ff; margin-bottom: 8px; letter-spacing: 2px; }
+
+        /* AUTH MODAL STYLES */
+        .auth-form {
+            display: flex; flex-direction: column; gap: 10px; width: 280px; margin-bottom: 12px;
+        }
+        .auth-input {
+            background: #181a26; border: 1px solid #00f3ff; padding: 10px; border-radius: 6px;
+            color: #fff; font-size: 0.85rem; outline: none;
+        }
+        .auth-input:focus { border-color: #ff00ff; box-shadow: 0 0 8px rgba(255, 0, 255, 0.5); }
+
+        .map-cards-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 15px; max-height: 170px; overflow-y: auto; }
+        .map-card {
+            width: 170px; height: 45px; background: #12131c; border: 2px solid #333;
+            border-radius: 6px; display: flex; align-items: center; cursor: pointer;
+            transition: all 0.2s; padding: 4px 8px; box-sizing: border-box; gap: 8px;
+        }
+
+        .map-card:hover { transform: scale(1.02); }
+        .map-card.selected { border-color: #00f3ff; background: rgba(0, 243, 255, 0.08); }
+
+        .map-card-icon { font-size: 1.1rem; }
+        .map-card-details { display: flex; flex-direction: column; width: 100%; }
+        .map-card-title { font-size: 0.68rem; font-weight: bold; }
+        .map-card-unlocks { font-size: 0.55rem; color: #aaa; margin-top: 1px; }
+
+        .map-info-panel {
+            margin-top: 8px; width: 730px; background: rgba(18, 19, 28, 0.9);
+            border: 1px solid #00f3ff; border-radius: 8px; padding: 6px 12px;
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+        }
+
+        .map-info-text { font-size: 0.78rem; color: #ddd; }
+
+        .wardrobe-container { display: flex; gap: 20px; align-items: center; width: 720px; height: 180px; }
+        .preview-box {
+            width: 150px; height: 150px; background: #12131c; border: 2px solid #00f3ff;
+            border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        .selection-list-panel { display: flex; flex-direction: column; gap: 8px; width: 530px; }
+        .selection-row-title { font-size: 0.75rem; font-weight: bold; color: #00f3ff; margin-bottom: 2px; }
+        .item-scroll-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+        .item-scroll-row::-webkit-scrollbar { height: 4px; }
+        .item-scroll-row::-webkit-scrollbar-thumb { background: #00f3ff; }
+
+        .item-btn {
+            background: #181a26; border: 1px solid #444; color: #fff; padding: 4px 8px;
+            border-radius: 5px; font-size: 0.65rem; font-weight: bold; cursor: pointer; white-space: nowrap;
+        }
+
+        .item-btn.selected { border-color: #ff00ff; background: rgba(255, 0, 255, 0.2); color: #ff00ff; }
+        .item-btn.locked { opacity: 0.4; cursor: not-allowed; border-color: #333; }
+
+        .shop-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 720px; max-height: 180px; overflow-y: auto; padding: 4px; }
+        .shop-card { background: #12131c; border: 1px solid #00f3ff; padding: 6px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+
+        .controls-hint { margin-top: 10px; font-size: 0.85rem; color: #aaa; display: flex; gap: 15px; }
+        key { background: #222; padding: 2px 6px; border-radius: 4px; border: 1px solid #444; color: #fff; }
+    </style>
+
+    <!-- FIREBASE SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+</head>
+<body>
+
+    <!-- TOP AUTH BAR -->
+    <div class="auth-bar">
+        <div id="userDisplay" class="user-pill" style="display: none;">Guest</div>
+        <button id="authModalBtn" class="btn btn-pink" onclick="openAuthModal()">Sign In / Account</button>
+        <button id="signOutBtn" class="btn" style="display: none;" onclick="handleSignOut()">Sign Out</button>
+    </div>
+
+    <h1>NEON RUNNER</h1>
+    <div id="mapBadge" class="map-badge">CURRENT MAP: NEON CITY</div>
+
+    <div class="score-board">
+        <div>SCORE: <span id="scoreText" style="color: #00f3ff;">0</span></div>
+        <div>💎 GEMS: <span id="gemText" style="color: #ff00ff;">0</span></div>
+        <div>🔥 COMBO: <span id="comboText" style="color: #ffea00;">x1</span></div>
+        <div>MAP BEST: <span id="highScoreText" style="color: #00f3ff;">0</span></div>
+    </div>
+
+    <div class="game-wrapper">
+        <canvas id="gameCanvas" width="800" height="300"></canvas>
+
+        <div id="bossWarning" class="boss-warning-overlay">⚠️ WARNING: BOSS AT 1000 PTS ⚠️</div>
+        <div id="countdownOverlay" class="countdown-overlay">3</div>
+
+        <!-- AUTH MODAL -->
+        <div id="authPage" class="menu-overlay" style="display: none;">
+            <div class="page-title" id="authTitle">MAKE AN ACCOUNT OR SIGN IN WITH SYVLL</div>
+            
+            <div class="auth-form">
+                <input type="email" id="authEmail" class="auth-input" placeholder="Syvll Email / Username">
+                <input type="password" id="authPassword" class="auth-input" placeholder="Password">
+            </div>
+
+            <div class="action-btn-group">
+                <button class="btn btn-pink" onclick="handleSyvllSignIn()">Sign In with Syvll</button>
+                <button class="btn btn-gold" onclick="handleSyvllSignUp()">Create Account</button>
+            </div>
+
+            <div style="margin: 10px 0; color: #666; font-size: 0.8rem;">— OR —</div>
+
+            <button class="btn btn-google" onclick="handleGoogleSignIn()">
+                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                Continue with Google
+            </button>
+
+            <div class="action-btn-group" style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="closeAuthModal()">Close & Resume</button>
+            </div>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div id="gameOverPage" class="menu-overlay" style="display: none;">
+            <div class="game-over-title">GAME OVER</div>
+            <div id="rewardUnlockBanner" style="font-weight: bold; color: #50fa7b; margin-bottom: 5px;"></div>
+            <div style="color: #aaa; margin-bottom: 10px;">Press <key>SPACE</key> to Replay!</div>
+
+            <div class="action-btn-group">
+                <button class="btn" onclick="triggerCountdownAndStart()">Play Again</button>
+                <button class="btn btn-pink" onclick="openWardrobePage()">Customize 👗</button>
+                <button class="btn btn-gold" onclick="openShopPage()">Shop 💎</button>
+                <button class="btn btn-secondary" onclick="openMapSelectionPage()">Maps 🗺️</button>
+            </div>
+        </div>
+
+        <!-- MAP SELECTION PAGE -->
+        <div id="mapSelectPage" class="menu-overlay" style="display: none;">
+            <div class="page-title">CHOOSE YOUR MAP</div>
+
+            <div class="map-cards-container" id="mapListGrid"></div>
+
+            <div class="map-info-panel">
+                <div class="map-info-text" id="mapDescText">Gimmick: Basic barriers.</div>
+                <button class="btn btn-pink" onclick="openWardrobePage()">Wardrobe 👗</button>
+            </div>
+
+            <div class="action-btn-group">
+                <button class="btn btn-gold" onclick="openShopPage()">Shop 💎</button>
+                <button class="btn" onclick="startWithChosenMap()">Start Match ⚡</button>
+            </div>
+        </div>
+
+        <!-- WARDROBE PAGE -->
+        <div id="wardrobePage" class="menu-overlay" style="display: none;">
+            <div class="page-title">CHARACTER & PET WARDROBE</div>
+            <div class="wardrobe-container">
+                <div class="preview-box">
+                    <canvas id="previewCanvas" width="80" height="90"></canvas>
+                    <div style="font-size: 0.65rem; color: #888; margin-top: 4px;">LIVE PREVIEW</div>
+                </div>
+                <div class="selection-list-panel">
+                    <div>
+                        <div class="selection-row-title">CUBE COLOR (UNLOCK AT 125 PTS)</div>
+                        <div class="item-scroll-row" id="colorButtonsRow"></div>
+                    </div>
+                    <div>
+                        <div class="selection-row-title">HEAD ACCESSORY (UNLOCK AT 250 PTS)</div>
+                        <div class="item-scroll-row" id="skinButtonsRow"></div>
+                    </div>
+                    <div>
+                        <div class="selection-row-title">TRAIL & PET COMPANION</div>
+                        <div class="item-scroll-row" id="trailButtonsRow"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="action-btn-group">
+                <button class="btn btn-secondary" onclick="openMapSelectionPage()">Back 🗺️</button>
+                <button class="btn" onclick="startWithChosenMap()">Start Match ⚡</button>
+            </div>
+        </div>
+
+        <!-- SHOP PAGE -->
+        <div id="shopPage" class="menu-overlay" style="display: none;">
+            <div class="page-title">CYBER MEGA SHOP 💎</div>
+            <div class="shop-box" id="shopGrid"></div>
+            <div class="action-btn-group" style="margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="openMapSelectionPage()">Back 🗺️</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-hint">
+        <div>Press <key>SPACE</key> / <key>UP</key> Jump | Press <key>DOWN</key> Slide / Fast Drop</div>
+    </div>
+
+<script>
+    // -------------------------------------------------------------
+    // FIREBASE INITIALIZATION
+    // -------------------------------------------------------------
+    const firebaseConfig = {
+        apiKey: "AIzaSyDKbrU-VKtXjH_3jJC0IeOdiSxBTOQJyPM",
+        authDomain: "syvll-14.firebaseapp.com",
+        projectId: "syvll-14",
+        storageBucket: "syvll-14.firebasestorage.app",
+        messagingSenderId: "181764771721",
+        appId: "1:181764771721:web:608aee3008ec9bd66c1b58",
+        measurementId: "G-NL8F76SKQY"
+    };
+
+    let auth = null;
+    let currentUser = null;
+    try {
+        firebase.initializeApp(firebaseConfig);
+        auth = firebase.auth();
+    } catch(e) { console.warn("Firebase initialization issue:", e); }
+
+    // PAUSE SYSTEM STATE
+    let isPaused = false;
+    let lastTime = 0;
+
+    // -------------------------------------------------------------
+    // AUTH LOGIC & MODAL PAUSING
+    // -------------------------------------------------------------
+    const authPage = document.getElementById("authPage");
+    const userDisplay = document.getElementById("userDisplay");
+    const authModalBtn = document.getElementById("authModalBtn");
+    const signOutBtn = document.getElementById("signOutBtn");
+
+    if (auth) {
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                userDisplay.innerText = user.displayName || user.email.split('@')[0];
+                userDisplay.style.display = "block";
+                authModalBtn.style.display = "none";
+                signOutBtn.style.display = "block";
+                loadUserData(user.uid);
+            } else {
+                currentUser = null;
+                userDisplay.style.display = "none";
+                authModalBtn.style.display = "block";
+                signOutBtn.style.display = "none";
+            }
+        });
+    }
+
+    function openAuthModal() {
+        isPaused = true;
+        authPage.style.display = "flex";
+    }
+
+    function closeAuthModal() {
+        authPage.style.display = "none";
+        isPaused = false;
+        lastTime = performance.now(); // Reset delta timer to prevent speed jumps
+        if (!isGameOver && !isCountingDown) {
+            requestAnimationFrame(animate);
+        }
+    }
+
+    function handleSyvllSignUp() {
+        let email = document.getElementById("authEmail").value;
+        let password = document.getElementById("authPassword").value;
+        if (!email || !password) return alert("Please fill in Email and Password!");
+
+        if (auth) {
+            auth.createUserWithEmailAndPassword(email, password)
+                .then(() => { alert("Syvll Account Created Successfully!"); closeAuthModal(); })
+                .catch(err => alert(err.message));
+        }
+    }
+
+    function handleSyvllSignIn() {
+        let email = document.getElementById("authEmail").value;
+        let password = document.getElementById("authPassword").value;
+        if (!email || !password) return alert("Please enter Email and Password!");
+
+        if (auth) {
+            auth.signInWithEmailAndPassword(email, password)
+                .then(() => { closeAuthModal(); })
+                .catch(err => alert(err.message));
+        }
+    }
+
+    function handleGoogleSignIn() {
+        if (!auth) return alert("Firebase Auth not initialized!");
+        let provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider)
+            .then(() => closeAuthModal())
+            .catch(err => alert(err.message));
+    }
+
+    function handleSignOut() {
+        if (auth) auth.signOut();
+        userDisplay.style.display = "none";
+        authModalBtn.style.display = "block";
+        signOutBtn.style.display = "none";
+    }
+
+    function loadUserData(uid) {
+        let savedGems = localStorage.getItem("neon_runner_gems_" + uid);
+        if (savedGems) totalGems = parseInt(savedGems);
+        updateMapUnlockUI();
+    }
+
+    // -------------------------------------------------------------
+    // GAME CANVAS ENGINE & MECHANICS
+    // -------------------------------------------------------------
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const pctx = document.getElementById("previewCanvas").getContext("2d");
+
+    const mapBadge = document.getElementById("mapBadge");
+    const scoreText = document.getElementById("scoreText");
+    const gemText = document.getElementById("gemText");
+    const comboText = document.getElementById("comboText");
+    const highScoreText = document.getElementById("highScoreText");
+
+    const gameOverPage = document.getElementById("gameOverPage");
+    const rewardUnlockBanner = document.getElementById("rewardUnlockBanner");
+    const mapSelectPage = document.getElementById("mapSelectPage");
+    const wardrobePage = document.getElementById("wardrobePage");
+    const shopPage = document.getElementById("shopPage");
+
+    const countdownOverlay = document.getElementById("countdownOverlay");
+    const bossWarning = document.getElementById("bossWarning");
+    const mapDescText = document.getElementById("mapDescText");
+
+    // AUDIO SYNTHESIZER
+    let audioCtx = null;
+    function playSound(type) {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+
+        let now = audioCtx.currentTime;
+        if (type === "jump") {
+            osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+            gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+        } else if (type === "gem") {
+            osc.frequency.setValueAtTime(800, now); osc.frequency.setValueAtTime(1200, now + 0.08);
+            gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+            osc.start(now); osc.stop(now + 0.15);
+        } else if (type === "hit") {
+            osc.type = "sawtooth"; osc.frequency.setValueAtTime(120, now); osc.frequency.linearRampToValueAtTime(40, now + 0.2);
+            gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        } else if (type === "boss") {
+            osc.type = "square"; osc.frequency.setValueAtTime(80, now); osc.frequency.linearRampToValueAtTime(200, now + 0.4);
+            gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+            osc.start(now); osc.stop(now + 0.4);
+        }
+    }
+
+    // SAVED DATA
+    let totalGems = parseInt(localStorage.getItem("neon_runner_gems")) || 0;
+    let mapScores = JSON.parse(localStorage.getItem("neon_runner_map_scores")) || {};
+    let purchasedTrails = JSON.parse(localStorage.getItem("neon_runner_trails")) || ["default"];
+    let purchasedPets = JSON.parse(localStorage.getItem("neon_runner_pets")) || ["drone"];
+
+    let equippedColorId = 1;
+    let equippedAccessoryId = 1;
+    let equippedTrail = "default";
+    let equippedPet = "drone";
+
+    function getMapHighScore(id) { return mapScores[id] || 0; }
+
+    const STANDARD_GRAVITY = 0.8;
+    const STANDARD_JUMP_FORCE = -13;
+
+    // MAP DEFINITIONS
+    const MAPS = {
+        1: { name: "NEON CITY 🏙️", bgGradient: ["#0d0e15", "#1a1c2e"], groundColor: "#00f3ff", runnerColor: "#ff007f", obstacleColor: "#00f3ff", desc: "Gimmick: Pulsing Cyber Gates.", skinName: "Visor" },
+        2: { name: "VOLCANO 🌋", bgGradient: ["#1a0500", "#330a00"], groundColor: "#ff4500", runnerColor: "#ff4500", obstacleColor: "#ff1100", desc: "Gimmick: Erupting Lava Geysers.", skinName: "Glasses" },
+        3: { name: "DEEP SPACE 🚀", bgGradient: ["#020208", "#080b21"], groundColor: "#00f3ff", runnerColor: "#00f3ff", obstacleColor: "#39ff14", desc: "Gimmick: Orbiting Satellites.", skinName: "Space Suit" },
+        4: { name: "ANCIENT RUINS 🏛️", bgGradient: ["#141008", "#2b2110"], groundColor: "#e5c158", runnerColor: "#00ffaa", obstacleColor: "#e5c158", desc: "Gimmick: Grounded Pillars & Boulders.", skinName: "Headband" },
+        5: { name: "CYBER HIGHWAY 🏎️", bgGradient: ["#18002e", "#38006b"], groundColor: "#ff00ff", runnerColor: "#bf00ff", obstacleColor: "#ff00ff", desc: "Gimmick: Fast Moving Speed-Barriers.", skinName: "Racer Helmet" },
+        6: { name: "TOXIC WASTES ☣️", bgGradient: ["#051a05", "#0b380b"], groundColor: "#39ff14", runnerColor: "#39ff14", obstacleColor: "#39ff14", desc: "Gimmick: Leaking Bio Barrels.", skinName: "Gas Mask" },
+        7: { name: "GRAVEYARD 👻", bgGradient: ["#0b0813", "#1f1535"], groundColor: "#bd93f9", runnerColor: "#bd93f9", obstacleColor: "#bd93f9", desc: "Gimmick: Rising Ghost Tombstones.", skinName: "Ghost Mask" },
+        8: { name: "SKY SANCTUARY ⚡", bgGradient: ["#3a1c71", "#d76d77"], groundColor: "#f1fa8c", runnerColor: "#ffea00", obstacleColor: "#f1fa8c", desc: "Gimmick: Zap Lightning Rods.", skinName: "Crown" },
+        9: { name: "ICE TUNDRA ❄️", bgGradient: ["#031625", "#0d395c"], groundColor: "#8be9fd", runnerColor: "#8be9fd", obstacleColor: "#8be9fd", desc: "Gimmick: Sliding Icicles.", skinName: "Ski Goggles" },
+        10: { name: "CANDYLAND 🍬", bgGradient: ["#2c001e", "#5c0038"], groundColor: "#ff79c6", runnerColor: "#ff79c6", obstacleColor: "#ff79c6", desc: "Gimmick: Bouncing Gummy Bears.", skinName: "Chef Hat" },
+        11: { name: "CYBER MATRIX 🟢", bgGradient: ["#000800", "#002000"], groundColor: "#50fa7b", runnerColor: "#50fa7b", obstacleColor: "#50fa7b", desc: "Gimmick: Glitching Code Blocks.", skinName: "Code Visor" },
+        12: { name: "WILD WEST 🤠", bgGradient: ["#2b1300", "#542600"], groundColor: "#ffb86c", runnerColor: "#ff9900", obstacleColor: "#ffb86c", desc: "Gimmick: Rolling Tumbleweeds.", skinName: "Cowboy Hat" },
+        13: { name: "TOY FACTORY 🧸", bgGradient: ["#3d0026", "#61003d"], groundColor: "#ff007f", runnerColor: "#ff007f", obstacleColor: "#00f3ff", desc: "Gimmick: Stacking Toy Blocks.", skinName: "Party Hat" },
+        14: { name: "GOLD TEMPLE 👑", bgGradient: ["#281e00", "#544000"], groundColor: "#ffd700", runnerColor: "#ffd700", obstacleColor: "#ffd700", desc: "Gimmick: Spinning Relics.", skinName: "Halo" },
+        15: { name: "COSMIC VOID 🌌", bgGradient: ["#050014", "#120033"], groundColor: "#a100ff", runnerColor: "#9400d3", obstacleColor: "#a100ff", desc: "Gimmick: Floating Void Crystals.", skinName: "Cat Ears" },
+        16: { name: "CRIMSON VOID 🔴", bgGradient: ["#140000", "#380000"], groundColor: "#ff0000", runnerColor: "#ff0000", obstacleColor: "#ff0000", desc: "Gimmick: Spinning Energy Blades.", skinName: "Ninja Mask" }
+    };
+
+    let currentMapId = 1;
+    let currentTheme = MAPS[currentMapId];
+
+    function buildMapListUI() {
+        let grid = document.getElementById("mapListGrid");
+        grid.innerHTML = "";
+        for (let i = 1; i <= Object.keys(MAPS).length; i++) {
+            let score = getMapHighScore(i);
+            let colorUnlocked = score >= 125 || i === 1;
+            let skinUnlocked = score >= 250 || i === 1;
+
+            let card = document.createElement("div");
+            card.className = `map-card ${currentMapId === i ? 'selected' : ''}`;
+            card.id = `cardMap${i}`;
+            card.onclick = () => chooseMap(i);
+            card.innerHTML = `
+                <div class="map-card-icon">${MAPS[i].name.split(" ").pop()}</div>
+                <div class="map-card-details">
+                    <div class="map-card-title">${MAPS[i].name}</div>
+                    <div class="map-card-unlocks">🎨 ${colorUnlocked ? '🔓' : '🔒 125p'} | 👑 ${skinUnlocked ? '🔓' : '🔒 250p'}</div>
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+    }
+
+    function updateMapUnlockUI() {
+        buildMapListUI();
+        gemText.innerText = totalGems;
+        highScoreText.innerText = getMapHighScore(currentMapId);
+    }
+
+    function openWardrobePage() {
+        mapSelectPage.style.display = "none"; gameOverPage.style.display = "none"; wardrobePage.style.display = "flex";
+        buildWardrobeButtons(); drawPreview();
+    }
+
+    function buildWardrobeButtons() {
+        let colorRow = document.getElementById("colorButtonsRow");
+        let skinRow = document.getElementById("skinButtonsRow");
+        let trailRow = document.getElementById("trailButtonsRow");
+
+        colorRow.innerHTML = ""; skinRow.innerHTML = ""; trailRow.innerHTML = "";
+
+        for (let i = 1; i <= Object.keys(MAPS).length; i++) {
+            let score = getMapHighScore(i);
+            let cUnlocked = score >= 125 || i === 1;
+            let sUnlocked = score >= 250 || i === 1;
+
+            let cBtn = document.createElement("button");
+            cBtn.className = `item-btn ${equippedColorId === i ? 'selected' : ''} ${!cUnlocked ? 'locked' : ''}`;
+            cBtn.innerText = cUnlocked ? MAPS[i].name.split(" ")[0] : "🔒 125p";
+            if (cUnlocked) cBtn.onclick = () => { equippedColorId = i; buildWardrobeButtons(); drawPreview(); };
+            colorRow.appendChild(cBtn);
+
+            let sBtn = document.createElement("button");
+            sBtn.className = `item-btn ${equippedAccessoryId === i ? 'selected' : ''} ${!sUnlocked ? 'locked' : ''}`;
+            sBtn.innerText = sUnlocked ? MAPS[i].skinName : "🔒 250p";
+            if (sUnlocked) sBtn.onclick = () => { equippedAccessoryId = i; buildWardrobeButtons(); drawPreview(); };
+            skinRow.appendChild(sBtn);
+        }
+
+        purchasedTrails.forEach(tr => {
+            let tBtn = document.createElement("button");
+            tBtn.className = `item-btn ${equippedTrail === tr ? 'selected' : ''}`;
+            tBtn.innerText = tr.toUpperCase() + " TRAIL";
+            tBtn.onclick = () => { equippedTrail = tr; buildWardrobeButtons(); drawPreview(); };
+            trailRow.appendChild(tBtn);
+        });
+
+        purchasedPets.forEach(pt => {
+            let pBtn = document.createElement("button");
+            pBtn.className = `item-btn ${equippedPet === pt ? 'selected' : ''}`;
+            pBtn.innerText = "PET: " + pt.toUpperCase();
+            pBtn.onclick = () => { equippedPet = pt; buildWardrobeButtons(); drawPreview(); };
+            trailRow.appendChild(pBtn);
+        });
+    }
+
+    function openShopPage() { 
+        mapSelectPage.style.display = "none"; gameOverPage.style.display = "none"; shopPage.style.display = "flex";
+        buildShopUI(); 
+    }
+
+    const SHOP_ITEMS = [
+        { type: 'pet', id: 'kitty', name: '🐱 Cyber Kitty', cost: 40 },
+        { type: 'pet', id: 'dragon', name: '🐉 Plasma Dragon', cost: 80 },
+        { type: 'pet', id: 'ufo', name: '🛸 Mini UFO', cost: 100 },
+        { type: 'pet', id: 'robo', name: '🤖 Mini Robo', cost: 120 },
+        { type: 'pet', id: 'wisp', name: '🔥 Flame Wisp', cost: 150 },
+        { type: 'pet', id: 'star', name: '⭐ Star Buddy', cost: 200 },
+        { type: 'trail', id: 'flame', name: '🔥 Flame Trail', cost: 50 },
+        { type: 'trail', id: 'rainbow', name: '🌈 Rainbow Trail', cost: 90 },
+        { type: 'trail', id: 'void', name: '🌌 Void Trail', cost: 130 },
+        { type: 'trail', id: 'gold', name: '✨ Golden Trail', cost: 180 }
+    ];
+
+    function buildShopUI() {
+        let shopGrid = document.getElementById("shopGrid");
+        shopGrid.innerHTML = "";
+        SHOP_ITEMS.forEach(item => {
+            let owned = item.type === 'pet' ? purchasedPets.includes(item.id) : purchasedTrails.includes(item.id);
+            let card = document.createElement("div");
+            card.className = "shop-card";
+            card.innerHTML = `
+                <div><b>${item.name}</b><br><small style="color:#aaa;">Cosmetic Companion</small></div>
+                <button class="btn btn-gold" onclick="buyShopItem('${item.type}', '${item.id}', ${item.cost})">${owned ? 'OWNED' : item.cost + ' 💎'}</button>
+            `;
+            shopGrid.appendChild(card);
+        });
+    }
+
+    function buyShopItem(type, id, cost) {
+        if (type === 'pet') {
+            if (purchasedPets.includes(id)) alert("Already Owned!");
+            else if (totalGems >= cost) {
+                totalGems -= cost; purchasedPets.push(id);
+                localStorage.setItem("neon_runner_gems", totalGems);
+                localStorage.setItem("neon_runner_pets", JSON.stringify(purchasedPets));
+                updateMapUnlockUI(); buildShopUI(); alert("Purchased " + id + "!");
+            } else alert("Not enough Gems!");
+        } else if (type === 'trail') {
+            if (purchasedTrails.includes(id)) alert("Already Owned!");
+            else if (totalGems >= cost) {
+                totalGems -= cost; purchasedTrails.push(id);
+                localStorage.setItem("neon_runner_gems", totalGems);
+                localStorage.setItem("neon_runner_trails", JSON.stringify(purchasedTrails));
+                updateMapUnlockUI(); buildShopUI(); alert("Purchased " + id + "!");
+            } else alert("Not enough Gems!");
+        }
+    }
+
+    function drawPreview() {
+        pctx.clearRect(0, 0, 80, 90);
+        let color = MAPS[equippedColorId].runnerColor;
+        pctx.fillStyle = color; pctx.fillRect(20, 30, 40, 45);
+        drawAccessory(pctx, equippedAccessoryId, 20, 30, 40, 45);
+    }
+
+    function drawAccessory(context, accId, x, y, w, h) {
+        context.save();
+        if (accId === 1) { context.fillStyle = "#00f3ff"; context.fillRect(x + w - 16, y + 8, 14, 6); }
+        else if (accId === 2) { context.fillStyle = "#000000"; context.fillRect(x + w - 22, y + 8, 20, 7); context.fillStyle = "#ff00f3"; context.fillRect(x + w - 20, y + 10, 8, 3); }
+        else if (accId === 3) { context.fillStyle = "#ffffff"; context.fillRect(x - 3, y - 3, w + 6, h + 6); context.fillStyle = "#00f3ff"; context.fillRect(x + w - 20, y + 6, 18, 16); }
+        else if (accId === 4) { context.fillStyle = "#ff0055"; context.fillRect(x - 2, y + 6, w + 4, 6); context.fillRect(x - 6, y + 6, 6, 12); }
+        else if (accId === 5) { context.fillStyle = "#bf00ff"; context.fillRect(x - 2, y - 4, w + 4, 22); context.fillStyle = "#ffea00"; context.fillRect(x + w - 18, y + 4, 16, 10); }
+        else if (accId === 6) { context.fillStyle = "#333333"; context.fillRect(x + w - 18, y + h - 18, 18, 16); context.fillStyle = "#39ff14"; context.beginPath(); context.arc(x + w - 8, y + h - 10, 5, 0, Math.PI * 2); context.fill(); }
+        else if (accId === 7) { context.fillStyle = "#ffffff"; context.fillRect(x + 10, y + 4, w - 12, h - 8); context.fillStyle = "#000000"; context.fillRect(x + w - 16, y + 10, 5, 8); context.fillRect(x + w - 8, y + 10, 5, 8); }
+        else if (accId === 8) { context.fillStyle = "#ffea00"; context.beginPath(); context.moveTo(x + 4, y); context.lineTo(x + 4, y - 10); context.lineTo(x + 12, y - 4); context.lineTo(x + w/2, y - 12); context.lineTo(x + w - 12, y - 4); context.lineTo(x + w - 4, y - 10); context.lineTo(x + w - 4, y); context.fill(); }
+        else if (accId === 9) { context.fillStyle = "#222222"; context.fillRect(x - 2, y + 6, w + 4, 10); context.fillStyle = "#8be9fd"; context.fillRect(x + w - 22, y + 7, 20, 8); }
+        else if (accId === 10) { context.fillStyle = "#ffffff"; context.fillRect(x + 6, y - 8, w - 12, 8); context.beginPath(); context.arc(x + w/2, y - 12, 14, 0, Math.PI * 2); context.fill(); }
+        else if (accId === 11) { context.fillStyle = "#50fa7b"; context.fillRect(x + 4, y + 8, w - 8, 6); }
+        else if (accId === 12) { context.fillStyle = "#ff9900"; context.fillRect(x - 8, y - 4, w + 16, 5); context.fillRect(x + 8, y - 14, w - 16, 10); }
+        else if (accId === 13) { context.fillStyle = "#ff007f"; context.beginPath(); context.moveTo(x + 8, y); context.lineTo(x + w/2, y - 18); context.lineTo(x + w - 8, y); context.fill(); }
+        else if (accId === 14) { context.strokeStyle = "#ffd700"; context.lineWidth = 3; context.strokeRect(x + 4, y - 10, w - 8, 4); }
+        else if (accId === 15) { context.fillStyle = "#9400d3"; context.beginPath(); context.moveTo(x + 2, y); context.lineTo(x + 8, y - 10); context.lineTo(x + 14, y); context.fill(); context.beginPath(); context.moveTo(x + w - 14, y); context.lineTo(x + w - 8, y - 10); context.lineTo(x + w - 2, y); context.fill(); }
+        else if (accId === 16) { context.fillStyle = "#111111"; context.fillRect(x - 1, y, w + 2, h); context.fillStyle = "#ff0000"; context.fillRect(x + w - 22, y + 8, 20, 6); }
+        context.restore();
+    }
+
+    // GAME LOOP VARIABLES
+    let score = 0; let gameSpeed = 6; let isGameOver = false; let isCountingDown = false;
+    let frameCount = 0; const groundY = 240;
+    let comboCount = 0; let scoreMultiplier = 1;
+
+    let isBossActive = false; let bossX = 900; let bossTimer = 0; let bossProjectiles = []; let hasSpawnedBossAt1000 = false;
+    let trailParticles = [];
+
+    function updateAndDrawTrails(dt) {
+        if (equippedTrail !== "default") {
+            trailParticles.push({
+                x: runner.x, y: runner.y + (runner.isSliding ? 10 : 20) + (Math.random() * 8 - 4),
+                size: Math.random() * 6 + 4, life: 1.0,
+                color: equippedTrail === "flame" ? "#ff4500" : equippedTrail === "rainbow" ? `hsl(${(frameCount * 5) % 360}, 100%, 50%)` : equippedTrail === "gold" ? "#ffea00" : "#a100ff"
+            });
+        }
+
+        for (let i = trailParticles.length - 1; i >= 0; i--) {
+            let p = trailParticles[i]; p.x -= gameSpeed * 0.6 * dt; p.life -= 0.05 * dt;
+            ctx.save(); ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            if (p.life <= 0) trailParticles.splice(i, 1);
+        }
+    }
+
+    const petDrone = {
+        x: 40, y: 180,
+        update() { this.x = runner.x - 30; this.y = runner.y - 15 + Math.sin(frameCount * 0.1) * 6; },
+        draw() {
+            ctx.save(); ctx.fillStyle = equippedPet === "kitty" ? "#ff79c6" : equippedPet === "dragon" ? "#ff4500" : equippedPet === "ufo" ? "#39ff14" : equippedPet === "star" ? "#ffea00" : "#00f3ff";
+            ctx.beginPath(); ctx.arc(this.x, this.y, 8, 0, Math.PI*2); ctx.fill(); ctx.restore();
+        }
+    };
+
+    const runner = {
+        x: 80, y: groundY - 40, width: 35, height: 40, dy: 0, isGrounded: false, isSliding: false, slideTimer: 0,
+        jump() {
+            if (isGameOver || isCountingDown || isPaused) return;
+            playSound("jump");
+            if (this.isGrounded) { this.dy = STANDARD_JUMP_FORCE; this.isGrounded = false; }
+        },
+        fastDropOrSlide() {
+            if (isGameOver || isCountingDown || isPaused) return;
+            if (this.isGrounded && !this.isSliding) { this.isSliding = true; this.slideTimer = 35; this.height = 20; this.y = groundY - 20; }
+            else if (!this.isGrounded) this.dy = 18;
+        },
+        update(dt) {
+            this.dy += STANDARD_GRAVITY * dt; this.y += this.dy * dt;
+            if (this.isSliding) { this.slideTimer -= dt; if (this.slideTimer <= 0) { this.isSliding = false; this.height = 40; this.y = groundY - 40; } }
+            if (this.y + this.height >= groundY) { this.y = groundY - this.height; this.dy = 0; this.isGrounded = true; }
+        },
+        draw(dt) {
+            updateAndDrawTrails(dt);
+            ctx.save(); ctx.shadowBlur = 10; ctx.shadowColor = MAPS[equippedColorId].runnerColor;
+            ctx.fillStyle = MAPS[equippedColorId].runnerColor; ctx.fillRect(this.x, this.y, this.width, this.height);
+            ctx.shadowBlur = 0;
+            if (!this.isSliding) drawAccessory(ctx, equippedAccessoryId, this.x, this.y, this.width, this.height);
+            ctx.restore();
+        }
+    };
+
+    let gemsOnMap = []; let obstacles = [];
+
+    class CyberGem {
+        constructor() { this.x = canvas.width; this.y = groundY - (Math.random()>0.5?40:90); this.size = 12; }
+        update(dt) { this.x -= gameSpeed * dt; }
+        draw() { ctx.fillStyle = "#ff00ff"; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
+    }
+
+    class Obstacle {
+        constructor() {
+            this.x = canvas.width; this.mapId = currentMapId;
+            this.isFlying = this.mapId === 4 ? false : Math.random() < 0.4;
+            this.width = 35; this.height = this.isFlying ? 25 : 40;
+            this.y = this.isFlying ? groundY - 80 : groundY - this.height; this.passed = false;
+            this.gimmickOffset = 0; this.angle = 0;
+        }
+        update(dt) {
+            let currentSpeed = gameSpeed * (this.mapId === 5 ? 1.3 : 1); this.x -= currentSpeed * dt;
+            if (this.mapId === 2) this.gimmickOffset = Math.sin(frameCount * 0.1) * 8;
+            else if (this.mapId === 3) this.gimmickOffset = Math.sin(frameCount * 0.08) * 15;
+            else if (this.mapId === 7) this.gimmickOffset = Math.sin(frameCount * 0.05) * 12;
+            else if (this.mapId === 10) this.gimmickOffset = Math.abs(Math.sin(frameCount * 0.15)) * -18;
+            else if (this.mapId === 12 || this.mapId === 14 || this.mapId === 16) this.angle += 0.12 * dt;
+        }
+        draw() {
+            ctx.fillStyle = currentTheme.obstacleColor; let drawY = this.y + this.gimmickOffset;
+            ctx.save();
+            ctx.fillRect(this.x, drawY, this.width, this.height);
+            ctx.restore();
+        }
+    }
+
+    function handleBossEvents(dt) {
+        let currentScore = Math.floor(score);
+        if (currentScore >= 1000 && currentScore % 1000 === 0 && !isBossActive && !hasSpawnedBossAt1000) {
+            isBossActive = true; hasSpawnedBossAt1000 = true; bossX = 650; bossTimer = 600; playSound("boss");
+            bossWarning.innerText = "⚠️ WARNING: BOSS AT " + currentScore + " PTS ⚠️";
+            bossWarning.style.display = "block"; setTimeout(() => { bossWarning.style.display = "none"; }, 2500);
+        }
+        if (currentScore % 1000 !== 0) hasSpawnedBossAt1000 = false;
+        if (isBossActive) {
+            bossTimer -= dt; let bossY = 100 + Math.sin(frameCount * 0.05) * 40;
+            ctx.fillStyle = "#ff0055"; ctx.fillRect(bossX, bossY, 70, 70);
+            if (frameCount % 90 === 0) { bossProjectiles.push({ x: bossX, y: Math.random() < 0.5 ? groundY - 30 : groundY - 80, speed: 8 }); }
+            for (let i = bossProjectiles.length - 1; i >= 0; i--) {
+                let p = bossProjectiles[i]; p.x -= p.speed * dt; ctx.fillStyle = "#ffea00"; ctx.fillRect(p.x, p.y, 25, 12);
+                if (runner.x < p.x + 25 && runner.x + runner.width > p.x && runner.y < p.y + 12 && runner.y + runner.height > p.y) gameOver();
+                if (p.x < 0) bossProjectiles.splice(i, 1);
+            }
+            if (bossTimer <= 0) { isBossActive = false; totalGems += 50; localStorage.setItem("neon_runner_gems", totalGems); gemText.innerText = totalGems; bossProjectiles = []; }
+        }
+    }
+
+    function handleSpawns(dt) {
+        if (frameCount % 120 === 0 && Math.random()<0.6) gemsOnMap.push(new CyberGem());
+        if (!isBossActive && frameCount % Math.max(45, Math.floor(105 - gameSpeed * 3)) === 0) obstacles.push(new Obstacle());
+
+        for (let i = gemsOnMap.length - 1; i >= 0; i--) {
+            gemsOnMap[i].update(dt); gemsOnMap[i].draw();
+            if (runner.x < gemsOnMap[i].x + 12 && runner.x + runner.width > gemsOnMap[i].x && runner.y < gemsOnMap[i].y + 12 && runner.y + runner.height > gemsOnMap[i].y) {
+                totalGems++; playSound("gem"); gemsOnMap.splice(i, 1);
+                localStorage.setItem("neon_runner_gems", totalGems); gemText.innerText = totalGems;
+            } else if (gemsOnMap[i].x < 0) gemsOnMap.splice(i, 1);
+        }
+
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            obstacles[i].update(dt); obstacles[i].draw();
+            if (!obstacles[i].passed && obstacles[i].x + obstacles[i].width < runner.x) {
+                obstacles[i].passed = true; comboCount++;
+                scoreMultiplier = comboCount >= 15 ? 5 : comboCount >= 10 ? 3 : comboCount >= 5 ? 2 : 1;
+                comboText.innerText = `x${scoreMultiplier}`;
+            }
+            let obsY = obstacles[i].y + obstacles[i].gimmickOffset;
+            if (runner.x < obstacles[i].x + obstacles[i].width && runner.x + runner.width > obstacles[i].x && runner.y < obsY + obstacles[i].height && runner.y + runner.height > obsY) gameOver();
+            if (obstacles[i] && obstacles[i].x + obstacles[i].width < 0) obstacles.splice(i, 1);
+        }
+    }
+
+    function openMapSelectionPage() { gameOverPage.style.display = "none"; wardrobePage.style.display = "none"; shopPage.style.display = "none"; mapSelectPage.style.display = "flex"; updateMapUnlockUI(); }
+    function chooseMap(id) { currentMapId = id; currentTheme = MAPS[id]; mapBadge.innerText = "CURRENT MAP: " + currentTheme.name; mapDescText.innerText = currentTheme.desc; updateMapUnlockUI(); drawEnvironment(); }
+    function startWithChosenMap() { mapSelectPage.style.display = "none"; wardrobePage.style.display = "none"; triggerCountdownAndStart(); }
+
+    function triggerCountdownAndStart() {
+        gameOverPage.style.display = "none"; isCountingDown = true;
+        let timer = 3; countdownOverlay.innerText = timer; countdownOverlay.style.display = "flex";
+        drawEnvironment(); runner.draw(1);
+        let countInterval = setInterval(() => {
+            timer--;
+            if (timer > 0) countdownOverlay.innerText = timer;
+            else if (timer === 0) countdownOverlay.innerText = "GO!";
+            else { clearInterval(countInterval); countdownOverlay.style.display = "none"; isCountingDown = false; restartGame(); }
+        }, 1000);
+    }
+
+    function drawEnvironment() {
+        let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        grad.addColorStop(0, currentTheme.bgGradient[0]); grad.addColorStop(1, currentTheme.bgGradient[1]);
+        ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = currentTheme.groundColor; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(canvas.width, groundY); ctx.stroke();
+    }
+
+    function gameOver() {
+        playSound("hit"); isGameOver = true; comboCount = 0; scoreMultiplier = 1;
+        let best = getMapHighScore(currentMapId); let finalScore = Math.floor(score);
+        if (finalScore > best) { mapScores[currentMapId] = finalScore; localStorage.setItem("neon_runner_map_scores", JSON.stringify(mapScores)); }
+        rewardUnlockBanner.innerText = finalScore > best ? "🏆 NEW HIGH SCORE RECORD!" : "";
+        updateMapUnlockUI(); gameOverPage.style.display = "flex";
+    }
+
+    function restartGame() {
+        runner.y = groundY - runner.height; runner.dy = 0; runner.isSliding = false; runner.height = 40;
+        obstacles = []; gemsOnMap = []; bossProjectiles = []; trailParticles = [];
+        isBossActive = false; hasSpawnedBossAt1000 = false;
+        score = 0; gameSpeed = 6; frameCount = 0; isGameOver = false; comboCount = 0; scoreMultiplier = 1;
+        lastTime = performance.now();
+        animate();
+    }
+
+    function animate(currentTime) {
+        if (isGameOver || isCountingDown || isPaused) return;
+
+        if (!lastTime) lastTime = currentTime;
+        let dt = (currentTime - lastTime) / (1000 / 60); // Delta time normalized to 60 FPS
+        if (isNaN(dt) || dt > 3) dt = 1; // Prevent large delta jumps when tab is inactive
+        lastTime = currentTime;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frameCount++; score += 0.15 * scoreMultiplier * dt; gameSpeed += 0.0012 * dt; scoreText.innerText = Math.floor(score);
+        drawEnvironment(); runner.update(dt); runner.draw(dt); petDrone.update(); petDrone.draw();
+        handleSpawns(dt); handleBossEvents(dt);
+        requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") { e.preventDefault(); if (isGameOver) triggerCountdownAndStart(); else runner.jump(); }
+        if (e.code === "ArrowUp") { e.preventDefault(); runner.jump(); }
+        if (e.code === "ArrowDown") { e.preventDefault(); runner.fastDropOrSlide(); }
+    });
+
+    canvas.addEventListener("click", () => { if (isGameOver) triggerCountdownAndStart(); else runner.jump(); });
+
+    updateMapUnlockUI(); triggerCountdownAndStart();
+</script>
+</body>
+</html>
